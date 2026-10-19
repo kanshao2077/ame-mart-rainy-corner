@@ -1,6 +1,7 @@
 import type { Kit, XYZ } from "./kit.ts";
 
 export interface SceneAnimation {
+  ready?: Promise<void>;
   update?: (delta: number, time: number, reducedMotion: boolean, pixelsPerUnit: number) => void;
   dispose?: () => void;
 }

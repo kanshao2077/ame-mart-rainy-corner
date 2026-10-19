@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import { Kit } from "./kit.ts";
+import { createPackageMaterials, createPillowBag, addCoffeePoster } from './packaging.ts';
 
 export function buildStore(kit: Kit) {
   const store = new THREE.Group();
   const doors: THREE.Group[] = [];
+  const fans: THREE.Group[] = [];
   store.name = "雨宿り · AME MART";
   kit.root.add(store);
 
@@ -187,7 +189,7 @@ export function buildStore(kit: Kit) {
   b(-0.5, 3.78, -1.675, 7.8, 0.3, 6.05, "#c9c5ae");
   b(-0.5, 3.595, -1.675, 7.55, 0.06, 5.8, "#e4dbc1");
   b(-0.5, 3.985, -1.675, 7.8, 0.11, 6.05, c.darkGreen);
-  b(-0.5, 4.105, -1.675, 7.76, 0.09, 6.01, "#8d9d99");
+  b(-0.5, 4.105, -1.675, 7.76, 0.09, 6.01, "#667b82");
   b(-0.5, 3.72, 1.3, 7.69, 0.5, 0.08, glow);
   b(3.35, 3.72, -1.66, 0.08, 0.5, 5.89, glow);
   b(-0.5, 3.97, 1.325, 7.78, 0.067, 0.047, c.celadon);
@@ -244,7 +246,7 @@ export function buildStore(kit: Kit) {
   }
 
   // Roof seams, parapet caps, weathered service equipment and bent drain pipes.
-  for (let i = 0; i < 18; i++) b(-4.13 + i * 0.43, 4.155, -1.7, 0.028, 0.028, 5.8, "#a9b6ad");
+  for (let i = 0; i < 12; i++) b(-4.08 + i * 0.65, 4.155, -1.7, 0.016, 0.017, 5.8, "#70888c");
   b(-0.5, 4.19, -4.63, 7.8, 0.1, 0.13, c.darkGreen);
   b(-4.33, 4.19, -1.675, 0.13, 0.1, 6.05, c.darkGreen);
   b(3.33, 4.18, -1.675, 0.13, 0.08, 6.05, c.darkGreen);
@@ -257,16 +259,10 @@ export function buildStore(kit: Kit) {
     rim.rotation.x = Math.PI / 2;
     kit.cylinder([x, 4.844, -3.23], 0.35, 0.015, c.charcoal, store, 32);
     kit.cylinder([x, 4.864, -3.23], 0.065, 0.025, c.metal, store);
-    for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4;
-      kit.rod(
-        [x, 4.883, -3.23],
-        [x + Math.cos(a) * 0.34, 4.883, -3.23 + Math.sin(a) * 0.34],
-        0.008,
-        "#a2b1a7",
-        store,
-      );
-    }
+    const fan=group(x,4.883,-3.23);fan.userData.dynamic=true;fans.push(fan);
+    for(let i=0;i<3;i++) {const blade=kit.roundedBox([0,0,0.17],[0.16,0.012,0.28],'#81948e',0.04,fan);
+      const a=i*Math.PI*2/3;blade.position.set(Math.sin(a)*0.16,0,Math.cos(a)*0.16);blade.rotation.y=a;}
+    label('AC-0'+(fans.length),x,4.47,-2.69,0.32,0.085,store,'#d3d4c5','#5f776f',160);
     for (let i = 0; i < 7; i++) b(x, 4.38 + i * 0.057, -2.698, 0.85, 0.018, 0.013, "#657d77");
     kit.tube(
       [
@@ -296,23 +292,9 @@ export function buildStore(kit: Kit) {
     store,
   );
 
-  const colors = ["#bc7770", "#88aa7b", "#e0bf70", "#799db0", "#a19ab5", "#d59870"];
-  const labelMaterials = colors.map((color, i) => {
-    const texture = kit.paint(128, 128, (ctx) => {
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 128, 128);
-      ctx.fillStyle = "#fff2d5";
-      ctx.fillRect(8, 39, 112, 46);
-      ctx.fillStyle = "#48655e";
-      ctx.font = "bold 21px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(["茶", "MILK", "米", "SODA", "菓子", "珈琲"][i], 64, 68);
-      ctx.fillStyle = "#fff2d5";
-      ctx.fillRect(21, 97, 87, 5);
-      ctx.fillRect(34, 109, 63, 4);
-    });
-    return new THREE.MeshBasicMaterial({ map: texture });
-  });
+  const colors = ["#ba7d72", "#879f80", "#d3b570", "#7293aa", "#dcd8c7", "#a58c6b"];
+  const labelMaterials = createPackageMaterials(kit,colors);
+  const pillowBag=createPillowBag();
   const priceTexture = kit.paint(512, 64, (ctx) => {
     ctx.fillStyle = "#faf0d6";
     ctx.fillRect(0, 0, 512, 64);
@@ -367,8 +349,7 @@ export function buildStore(kit: Kit) {
       b(0, 0.166, 0, 0.024, 0.005, 0.012, c.charcoal, p);
       kit.mesh(new THREE.PlaneGeometry(0.075, 0.11), labelMaterials[tint % 6], [0, 0.08, 0.052], p);
     } else if (type === 2) {
-      const bag = kit.mesh(new THREE.SphereGeometry(1, 7, 5), kit.toon(color), [0, 0.105, 0], p);
-      bag.scale.set(0.077, 0.1, 0.043);
+      kit.mesh(pillowBag, kit.toon(color), [0, 0, 0], p);
       b(0, 0.203, 0, 0.132, 0.013, 0.025, c.ivory, p);
       b(0, 0.011, 0, 0.125, 0.015, 0.027, color, p);
       kit.mesh(
@@ -411,7 +392,7 @@ export function buildStore(kit: Kit) {
             y + 0.022,
             -0.71 + j * 0.178,
             (aisle + level) % 4,
-            (j + aisle + level) % 6,
+            (Math.floor(j/3) + aisle + level*2) % 6,
             shelf,
             (side * Math.PI) / 2,
           );
@@ -466,7 +447,7 @@ export function buildStore(kit: Kit) {
           y + 0.021,
           0.486,
           (level + door) % 3 === 0 ? 1 : 0,
-          (j + door + level) % 6,
+          (Math.floor(j/3) + door*2 + level) % 6,
           fridge,
         );
     }
@@ -749,8 +730,7 @@ export function buildStore(kit: Kit) {
   label("お会計  /  CHECKOUT", -2.33, 2.52, -0.23, 1.57, 0.21, store, c.ivory, c.darkGreen, 79);
   for (const x of [-2.92, -1.74])
     kit.rod([x, 3.55, -0.23], [x, 2.635, -0.23], 0.01, c.charcoal, store);
-  label("淹れたて ¥120", -3.54, 2.03, 1.318, 0.79, 0.42, store, c.ivory, c.coral, 130);
-  label("雨の日も、あたたかく。", -3.54, 1.715, 1.319, 0.79, 0.16, store, c.celadon, c.ivory, 86);
+  addCoffeePoster(kit,store);
   const rightPoster = label(
     "季節のおすすめ",
     3.319,
@@ -774,6 +754,7 @@ export function buildStore(kit: Kit) {
   kit.point([2.13, 2.7, 0.1], "#ffe6b6", 12, 6.0);
   return {
     update(time: number, reduced: boolean) {
+      fans.forEach(fan=>{fan.rotation.y=reduced?0:time*1.2;});
       const phase = time % 24;
       const open = reduced ? 0 : phase < 11 ? 0 : phase < 12.1
         ? THREE.MathUtils.smoothstep(phase, 11, 12.1)

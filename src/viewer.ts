@@ -5,6 +5,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { Kit } from "./kit.ts";
+import { ContactShadows, createColorGrade } from './post.ts';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { SceneAnimation, SceneBuilder, SceneConfig } from "./types.ts";
 
 export function createScene(
@@ -16,16 +18,32 @@ export function createScene(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(entry.background);
   const kit = new Kit();
+  const backdrop = kit.paint(512, 512, ctx => {
+    const gradient = ctx.createRadialGradient(260, 280, 10, 256, 256, 350);
+    gradient.addColorStop(0, '#24334a');
+    gradient.addColorStop(0.6, '#152238');
+    gradient.addColorStop(1, '#0b1425');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+  });
+  scene.background = backdrop;
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.03;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const environmentScene = new RoomEnvironment();
+  const environmentGenerator = new THREE.PMREMGenerator(renderer);
+  const environmentTarget = environmentGenerator.fromScene(environmentScene,0.04);
+  scene.environment = environmentTarget.texture;
+  scene.environmentIntensity = 0.16;
+  environmentScene.dispose();
+  environmentGenerator.dispose();
   const canvas = renderer.domElement;
   canvas.tabIndex = 0;
   canvas.setAttribute("role", "img");
@@ -35,9 +53,15 @@ export function createScene(
   );
   host.appendChild(canvas);
   const camera = new THREE.OrthographicCamera(-12, 12, 9, -9, 0.1, 150);
+  camera.layers.enable(2);
   camera.position.set(...entry.camera);
   const controls = new OrbitControls(camera, canvas);
   controls.target.set(...entry.target);
+  if (new URLSearchParams(location.search).get('view') === 'visitor') {
+    controls.target.set(0.92,1.38,1.82);
+    camera.position.set(3.8,3.1,10.8);
+    camera.zoom=4.3;
+  }
   controls.enableDamping = true;
   controls.dampingFactor = 0.085;
   controls.rotateSpeed = 0.55;
@@ -50,7 +74,7 @@ export function createScene(
   controls.screenSpacePanning = true;
   controls.update();
   controls.saveState();
-  scene.add(new THREE.HemisphereLight(entry.light, "#77848a", entry.ambient));
+  scene.add(new THREE.HemisphereLight(entry.light, "#4f556d", entry.ambient));
   const sun = new THREE.DirectionalLight(entry.light, entry.intensity);
   sun.position.set(-7, 15, 8);
   sun.castShadow = true;
@@ -60,7 +84,7 @@ export function createScene(
   sun.shadow.bias = -0.0001;
   sun.shadow.radius = 3;
   scene.add(sun);
-  const rim = new THREE.DirectionalLight("#b1cad5", entry.ambient * 0.65);
+  const rim = new THREE.DirectionalLight("#a6b8f5", entry.ambient * 0.7);
   rim.position.set(3, 7, -9);
   scene.add(rim);
 
@@ -68,6 +92,8 @@ export function createScene(
   let composer: EffectComposer | undefined;
   let bloom: UnrealBloomPass | undefined;
   let output: OutputPass | undefined;
+  let contact: ContactShadows | undefined;
+  let grade: ReturnType<typeof createColorGrade> | undefined;
   let resizeObserver: ResizeObserver | undefined;
   let frame = 0;
   let disposed = false;
@@ -137,9 +163,12 @@ export function createScene(
     animation?.dispose?.();
     bloom?.dispose();
     output?.dispose();
+    contact?.dispose();
+    grade?.dispose();
     composer?.dispose();
     sun.shadow.map?.dispose();
     kit.dispose();
+    environmentTarget.dispose();
     renderer.dispose();
     canvas.remove();
     delete host.dataset.sceneReady;
@@ -148,10 +177,17 @@ export function createScene(
     animation = build(kit);
     kit.batch();
     scene.add(kit.root);
-    composer = new EffectComposer(renderer);
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: host.clientWidth > 640 ? 4 : 2 });
+    composer = new EffectComposer(renderer, target);
     composer.addPass(new RenderPass(scene, camera));
-    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), entry.ambient < 1 ? 0.17 : 0.09, 0.4, 1.4);
+    if (host.clientWidth > 640) {
+      contact = new ContactShadows(scene, camera);
+      composer.addPass(contact);
+    }
+    bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.24, 0.6, 1.15);
     composer.addPass(bloom);
+    grade = createColorGrade();
+    composer.addPass(grade);
     output = new OutputPass();
     composer.addPass(output);
     const pixelsPerUnit = () =>
@@ -196,7 +232,9 @@ export function createScene(
       }
     };
     render(performance.now());
-    host.dataset.sceneReady = "true";
+    Promise.resolve(animation?.ready).then(() => {
+      if (!disposed) host.dataset.sceneReady = "true";
+    }).catch(fail);
     return dispose;
   } catch (error) {
     dispose();

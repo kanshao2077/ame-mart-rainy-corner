@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 export type Color = THREE.ColorRepresentation;
 export type XYZ = [number, number, number];
@@ -10,17 +11,18 @@ export class Kit {
   private materials = new Map<string, THREE.Material>();
   private cube = new THREE.BoxGeometry(1, 1, 1);
   private geometries = new Set<THREE.BufferGeometry>();
+  private roundedGeometries = new Map<string, THREE.BufferGeometry>();
   private ownedMaterials = new Set<THREE.Material>();
   private gradient: THREE.DataTexture;
   private outlines = new THREE.LineBasicMaterial({
     color: "#182435",
     transparent: true,
-    opacity: 0.28,
+    opacity: 0.19,
   });
 
   constructor() {
     this.gradient = new THREE.DataTexture(
-      new Uint8Array([95, 155, 209, 255]),
+      new Uint8Array([90, 151, 213, 255]),
       4,
       1,
       THREE.RedFormat,
@@ -41,6 +43,19 @@ export class Kit {
         emissive: color,
         emissiveIntensity: glow,
       });
+      // A gentle illumination-based split keeps ink-blue shadows and warm highlights.
+      // Dividing out albedo prevents dark painted surfaces from receiving a false shadow tint.
+      material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+          'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
+          `vec3 lightSum = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+          float illumination = dot(lightSum / max(diffuseColor.rgb, vec3(0.001)), vec3(0.2126,0.7152,0.0722));
+          vec3 shadeTint = vec3(0.90, 0.97, 1.15);
+          vec3 lightTint = vec3(1.045, 1.005, 0.945);
+          vec3 outgoingLight = lightSum * mix(shadeTint, lightTint, smoothstep(0.35,1.15,illumination)) + totalEmissiveRadiance;`,
+        );
+      };
+      material.customProgramCacheKey = () => 'ame-anime-split-v2';
       this.materials.set(key, material);
     }
     return material as THREE.MeshToonMaterial;
@@ -110,6 +125,22 @@ export class Kit {
       position,
       parent,
     );
+  }
+
+  roundedBox(
+    position: XYZ,
+    size: XYZ,
+    color: Color | THREE.Material,
+    radius = 0.035,
+    parent: THREE.Object3D = this.root,
+  ): THREE.Mesh {
+    const key = `${size.join(',')}:${radius}`;
+    let geometry = this.roundedGeometries.get(key);
+    if (!geometry) {
+      geometry = new RoundedBoxGeometry(...size, 2, Math.min(radius, ...size.map(v => v * 0.35)));
+      this.roundedGeometries.set(key, geometry);
+    }
+    return this.mesh(geometry, color instanceof THREE.Material ? color : this.toon(color), position, parent);
   }
 
   rod(
@@ -281,7 +312,7 @@ export class Kit {
       if (
         object instanceof THREE.Mesh ||
         object instanceof THREE.LineSegments ||
-        object instanceof THREE.Points
+        object instanceof THREE.Points || object instanceof THREE.Sprite
       ) {
         geometries.add(object.geometry);
         (Array.isArray(object.material) ? object.material : [object.material]).forEach((m) =>

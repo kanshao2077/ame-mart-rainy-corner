@@ -9,6 +9,7 @@ export function createAtmosphere(kit: Kit) {
   });
   const streaks = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.008, 0.24), glassMaterial, 80);
   streaks.userData.dynamic = true;
+  streaks.layers.set(2);
   streaks.frustumCulled = false;
   streaks.renderOrder = 4;
   kit.root.add(streaks);
@@ -19,6 +20,7 @@ export function createAtmosphere(kit: Kit) {
     52,
   );
   drops.userData.dynamic = true;
+  drops.layers.set(2);
   drops.frustumCulled = false;
   kit.root.add(drops);
 

@@ -9,6 +9,7 @@ const result = await build({
   format: 'iife',
   target: 'es2022',
   legalComments: 'inline',
+  loader: { '.glb': 'binary' },
 });
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const css = await readFile('src/style.css', 'utf8');

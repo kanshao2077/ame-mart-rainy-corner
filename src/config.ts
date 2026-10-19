@@ -3,9 +3,9 @@ import type { SceneConfig } from "./types.ts";
 export const config: SceneConfig = {
   "title": "雨夜便利店街角",
   "background": "#111d30",
-  "light": "#a5c5ed",
-  "intensity": 0.95,
-  "ambient": 0.62,
+  "light": "#b7c9ed",
+  "intensity": 0.87,
+  "ambient": 0.59,
   "camera": [
     18,
     11.7,

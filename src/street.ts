@@ -279,11 +279,11 @@ function alleyDetails(kit: Kit) {
 }
 
 export function buildStreet(kit: Kit): void {
-  kit.box([0, -0.3, 0], [15, 0.72, 15], "#243645", undefined, true);
+  kit.roundedBox([0, -0.3, 0], [15, 0.72, 15], new THREE.MeshStandardMaterial({color:'#233344',metalness:0.22,roughness:0.45}),0.08);
   kit.box([0, 0.072, 0], [15, 0.08, 15], "#879294");
   kit.box([0, 0.115, 0], [14.97, 0.04, 14.97], "#374954");
   kit.box([-0.96, 0.24, -1.28], [10.58, 0.2, 9.54], "#7d8c8d", undefined, true);
-  const sidewalkColors = ["#869898", "#8d9a96", "#83928f", "#8a9795"];
+  const sidewalkColors = ["#81928f", "#859592", "#80908f", "#849391"];
   for (let x = -6; x < 4; x += 0.57) {
     for (let z = -5.8; z < 3.3; z += 0.57) {
       if (x > -4.5 && x < 3.3 && z > -4.8 && z < 1.3) continue;
@@ -295,10 +295,10 @@ export function buildStreet(kit: Kit): void {
     }
   }
   for (let x = -6.0; x <= 4.0; x += 0.64) {
-    kit.box([x, 0.29, 3.47], [0.615, 0.21, 0.2], "#b4bcb4", undefined, true);
+    kit.roundedBox([x, 0.29, 3.47], [0.615, 0.21, 0.2], "#aab6b0",0.018);
   }
   for (let z = -5.8; z < 3.4; z += 0.64) {
-    kit.box([4.26, 0.29, z], [0.2, 0.21, 0.615], "#b4bcb4", undefined, true);
+    kit.roundedBox([4.26, 0.29, z], [0.2, 0.21, 0.615], "#aab6b0",0.018);
   }
   // An L-shaped drain traces the corner instead of letting the street read as a flat plaza.
   kit.box([-0.95, 0.15, 3.68], [10.65, 0.019, 0.19], "#233640");
